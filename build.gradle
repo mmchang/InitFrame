@@ -1,0 +1,60 @@
+
+apply plugin: 'java'
+apply plugin: 'maven'
+sourceCompatibility = 1.7
+version = '1.0.1'
+
+dependencies {
+	compile(
+		"dom4j:dom4j:1.6.1",
+		"org.slf4j:slf4j-api:1.7.21",
+		'javax.servlet:servlet-api:2.5',
+		'com.alibaba:fastjson:1.2.17',
+		'commons-collections:commons-collections:3.2',
+		"org.springframework:spring-web:3.2.4.RELEASE", 
+		"org.springframework:spring-webmvc:3.2.4.RELEASE"
+	)
+}
+
+repositories {
+   	jcenter()
+}
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java'
+        }
+        resources {
+			srcDirs = ['src/main/resources']
+		}
+    }
+}
+task clearBuild(type:Delete) {
+    description  'deleting the build directory ...'
+    delete 'build'
+}
+compileJava.dependsOn clearBuild
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': project.name,
+                   'Implementation-Version': version
+    }
+}
+uploadArchives {
+    repositories {
+       mavenDeployer { 
+            repository(url: "http://58.154.128.145:8081/nexus/content/repositories/thirdparty/") {  
+                authentication(userName: "admin", password: "admin123")
+            }
+            pom.project {
+            	name = project.name
+                version = project.version
+            	artifactId = project.name
+            	groupId = project.name
+                packaging='jar'  
+                description='a test'  
+            }  
+        }
+    }
+}
