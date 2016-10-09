@@ -10,8 +10,11 @@ import java.util.Set;
 
 import javax.sql.DataSource;
 
-import org.jdom.Document;
-import org.jdom.Element;
+
+
+
+import org.dom4j.Document;
+import org.dom4j.Element;
 
 import com.lnpc.common.config.Constant;
 import com.lnpc.common.persistence.Persistence;
@@ -108,11 +111,11 @@ public class CacheManager {
 	private static void loadCacheSql() {
 		try {
 			Document doc = XmlUtils.createDocument(new File(cacheSqlPath));
-			List<?> loginList = XmlUtils.selectNodes(doc, "cacheSql");
+			List<?> loginList = doc.selectNodes("cacheSql");
 			for (int i = 0; i < loginList.size(); i++) {
 				Element elem = (Element) loginList.get(i);
-				if (elem.getAttributeValue("load").equals("true")) {
-					getSqlCache(elem.getAttributeValue("cacheKey"), elem.getTextTrim());
+				if (elem.attributeValue("load").equals("true")) {
+					getSqlCache(elem.attributeValue("cacheKey"), elem.getTextTrim());
 				}
 			}
 		} catch (Exception e) {
@@ -131,11 +134,11 @@ public class CacheManager {
 	private static String getCacheSql(String cacheId) {
 		try {
 			Document doc = XmlUtils.createDocument(new File(cacheSqlPath));
-			List<?> loginList = XmlUtils.selectNodes(doc, "cacheSql");
+			List<?> loginList = doc.selectNodes("cacheSql");
 			for (int i = 0; i < loginList.size(); i++) {
 				Element elem = (Element) loginList.get(i);
-				if (elem.getAttributeValue("load").equals("true")) {
-					if (elem.getAttributeValue("cacheKey").equals(cacheId)) {
+				if (elem.attributeValue("load").equals("true")) {
+					if (elem.attributeValue("cacheKey").equals(cacheId)) {
 						return elem.getTextTrim();
 					}
 				}

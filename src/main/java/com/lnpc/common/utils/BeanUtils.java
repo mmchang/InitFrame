@@ -6,7 +6,8 @@ import java.util.Map;
 
 import javax.servlet.ServletContext;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 
@@ -22,7 +23,7 @@ public class BeanUtils {
 	 */
 	private static Map<String, Object> object_map = Collections.synchronizedMap(new HashMap<String, Object>());
 	private static WebApplicationContext webAppCxt = null;
-	private static Logger logger = Logger.getLogger(BeanUtils.class);
+	private static Logger logger = LoggerFactory.getLogger(BeanUtils.class);
 
 	private BeanUtils() {
 

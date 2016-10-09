@@ -15,11 +15,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.apache.commons.fileupload.FileUploadException;
-
-import com.lnpc.common.config.Constant;
-import com.lnpc.common.upload.FileUpload;
-
 /**
  * 抽象登陆过滤器
  * 

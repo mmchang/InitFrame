@@ -9,7 +9,10 @@ import java.io.InputStream;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.log4j.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.lnpc.common.utils.HttpUtils;
 
 /**
@@ -19,7 +22,7 @@ import com.lnpc.common.utils.HttpUtils;
  * 
  */
 public class FileDownload {
-	private static Logger logger = Logger.getLogger(FileDownload.class);
+	private static Logger logger = LoggerFactory.getLogger(FileDownload.class);
 	private HttpServletRequest request;
 	private HttpServletResponse response;
 	/**

@@ -3,6 +3,7 @@ package com.lnpc.common.rowset;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
@@ -32,13 +33,13 @@ public class RowSetUtils {
 
 	public static final String SQL_OR = "OR";
 
-	protected static final String SQL_SELECT = "SELECT * FROM";
+	protected static final String SQL_SELECT = "SELECT * FROM ";
 
-	protected static final String SQL_UPDATE = "UPDATE";
+	protected static final String SQL_UPDATE = "UPDATE ";
 
-	protected static final String SQL_INSERT = "INSERT INTO";
+	protected static final String SQL_INSERT = "INSERT INTO ";
 
-	protected static final String SQL_DELETE = "DELETE FROM";
+	protected static final String SQL_DELETE = "DELETE FROM ";
 
 	private static final char sign[] = { '[', ']' };
 
@@ -73,7 +74,10 @@ public class RowSetUtils {
 
 	/**
 	 * 
-	 * <p>Description: 多表关联查询</p>
+	 * <p>
+	 * Description: 根据RowSet获取select语句（多表外关联查询）
+	 * </p>
+	 * 
 	 * @param rowSetName
 	 * @deprecated
 	 * @return
@@ -141,29 +145,46 @@ public class RowSetUtils {
 	}
 
 	/**
-	 * build select sql from rowset
+	 * 
+	 * <p>
+	 * Description: 根据RowSet获取select语句
+	 * </p>
 	 * 
 	 * @author changjq
 	 * @param rowSetName
 	 * @return
 	 */
 	public static String getSelectSql(String rowSetName) {
-		String _sql = "", _table, _column;
+
+		/** 返回的sql */
+		String _sql = "";
+
+		/** 表名 */
+		String _table = null;
+
+		/** 字段名 */
+		String _column = null;
+
+		/** 存储字段名 */
 		List<String> hsAttr = new ArrayList<String>();
-		Set<String> hsTable = new HashSet<String>();
+
+		/** 存储数据库名 */
+		Set<String> hsTable = new HashSet<String>();//
 		try {
 			RowSetDescriptor rowSetDescript = RowSetDescriptorManager.getRowSetDescriptor(rowSetName);
+
+			/** 字段总数 */
 			int columnCount = rowSetDescript.getColumnCount();
 			for (int i = 0; i < columnCount; i++) {
 				ColumnDescriptor columnDescript = rowSetDescript.getColumn(i);
 				_table = columnDescript.getTable();
 				_column = columnDescript.getName();
-				if (!"".equals(_table) && !"".equals(_column)) {
+				if ((!StringUtils.checkNullOrEmptyString(_table)) && (!StringUtils.checkNullOrEmptyString(_column))) {
 					hsAttr.add(_table + SQL_POINT + _column);
 					hsTable.add(_table);
 				}
 			}
-			_sql += "select " + hsAttr + " from " + hsTable;
+			_sql = "select " + hsAttr + " from " + hsTable;
 			_sql = StringUtils.replace(_sql, sign);
 		} catch (Exception e) {
 			logger.error(e.getMessage());
@@ -173,10 +194,10 @@ public class RowSetUtils {
 	}
 
 	/**
-	 * build update sql from rowset
+	 * 获取修改语句（批量）
 	 * 
 	 * @Title: getUpdateSql
-	 * @Description: TODO(这里用一句话描述这个方法的作用)
+	 * @Description: 根据RowSet的名称和行获取修改语句
 	 * @author: cjq
 	 * @date:2015年9月25日 上午9:38:16
 	 * @param rowSetName
@@ -184,141 +205,134 @@ public class RowSetUtils {
 	 * @return
 	 * @return: Object[0]:sql;Object[1]:prepared args
 	 */
-	public static Object[] getUpdateSql(String rowSetName, Row row) {
-		String column, key, value, _table, _conditions = "", _column_values = "", _sql = "", _column_values_asks = "", _conditions_asks = "";
+	protected static Object[] getUpdateSql(String rowSetName, Row row) {
+
+		/** 字段名 */
+		String _column = null;
+
+		/** 主鍵标识 */
+		String _key = null;
+
+		/** 字段值 */
+		String _value = null;
+
+		/** 字段类型 */
+		String _type = null;
+
+		/** 表名 */
+		String _table = null;
+
+		/** 返回的sql */
+		String _sql = "";
+
+		/** set的字段：字段=？ */
+		StringBuffer _column_values_asks = new StringBuffer(256);
+
+		/** 更新的where条件：字段=？ */
+		StringBuffer _conditions_asks = new StringBuffer(256);
+
+		/** 返回值：[0] sql语句(带问号) ;[1] 匹配问号的具体参数(数组) */
 		Object[] retObj = new Object[2];
 		try {
 			RowSetDescriptor rowSetDescript = RowSetDescriptorManager.getRowSetDescriptor(rowSetName);
 			int columnCount = rowSetDescript.getColumnCount();
-			List argsArr = new ArrayList();
-			List whereArr = new ArrayList();
+
+			/** 存储匹配问号的具体参数 */
+			List<Object> argsArr = new LinkedList<Object>();
+
+			/** 存储匹配问号的where条件参数 */
+			List<Object> whereArr = new LinkedList<Object>();
 			for (int i = 0; i < columnCount; i++) {
 				ColumnDescriptor columnDescript = rowSetDescript.getColumn(i);
-				column = columnDescript.getName();
+				_column = columnDescript.getName();
 				_table = columnDescript.getTable();
-				if (!"".equals(_table) && !"".equals(column)) {
-					key = columnDescript.getKey();
-					String type = columnDescript.getType();
-					value = row.getColumnValue(column);
-					if (value == null || "null".equals(value)) {
+				if ((!StringUtils.checkNullOrEmptyString(_table)) && (!StringUtils.checkNullOrEmptyString(_column))) {
+					_key = columnDescript.getKey();
+					_type = columnDescript.getType();
+					_value = row.getColumnValue(_column);
+					if (_value == null || "null".equals(_value)) {
 						continue;
 					}
-					if (key.equals("true")) {
-						_conditions_asks += column + "= ? and ";
-						if ("integer".equals(type) || "numeric".equals(type)) {
-							whereArr.add(new Integer(value));
-							// _conditions += column + "=" + value + " and ";
-						} else if ("varchar".equals(type)) {
-							whereArr.add(value);
-							// _conditions += column + "='" + value + "' and ";
-						} else if ("date".equals(type)) {
-							String format = "yyyy-MM-dd hh:mm:ss";
-							if (value.trim().length() == 10) {
-								format = "yyyy-MM-dd";
-							} else if (value.trim().length() == 4) {
-								format = "yyyy";
-							} else if (value.trim().length() == 7) {
-								format = "yyyy-MM";
-							} else if (value.trim().length() == 13) {
-								format = "yyyy-MM-dd HH";
-							} else if (value.trim().length() == 16) {
-								format = "yyyy-MM-dd HH:mm";
-							}
-							whereArr.add(new java.sql.Timestamp(DateUtils.string2Date(value, format).getTime()));
-							/*
-							 * if(ConfigManager.getConstant(Constant.DataBase.
-							 * DATABASE_TYPE
-							 * ).equals(Constant.DataBase.DATABASE_TYPE_ORACLE
-							 * )){ if("".equals(value)){ _conditions += column +
-							 * " is null and "; } else{ _conditions +=
-							 * "to_char("+column + ",'yyyy-mm-dd')='" + value +
-							 * "' and "; } } else
-							 * if(ConfigManager.getConstant(Constant
-							 * .DataBase.DATABASE_TYPE
-							 * ).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)){
-							 * if("".equals(value)){ _conditions += column +
-							 * " is null and "; } else{ _conditions += column +
-							 * "='" + value + "' and "; } }
-							 */
+
+					/** 如果当前字段是主键, 则将此字段匹配到where条件中（暂不支持更新主键） */
+					if (_key.equals("true")) {
+						_conditions_asks.append(_column);
+						_conditions_asks.append("= ? and ");
+
+						/** 如果当前字段是数值类型 */
+						if (Constant.DataBase.FILED_TYPE_INTEGER.equals(_type) || Constant.DataBase.FILED_TYPE_NUMERIC.equals(_type)) {
+
+							/** 添加Integer类型参数 */
+							whereArr.add(new Integer(_value));
+						} else if (Constant.DataBase.FILED_TYPE_VARCHAR.equals(_type)) {
+							/** 如果当前字段是字符串类型 */
+
+							/** 添加String类型参数 */
+							whereArr.add(_value);
+						} else if (Constant.DataBase.FILED_TYPE_DATE.equals(_type)) {
+							/** 如果当前字段是时间类型 */
+							final String format = DateUtils.dateStr2FormatStrForOracle(_value);
+
+							/** 添加Timestamp类型参数 */
+							whereArr.add(new java.sql.Timestamp(DateUtils.string2Date(_value, format).getTime()));
 						} else {
-							// _conditions += column + "='" + value + "' and ";
+							/** 如果是其他类型 */
+
+							/** 添加String类型参数 */
+							whereArr.add(_value);
 						}
 					} else {
-						_column_values_asks += column + "=?,";
-						if ("integer".equals(type) || "numeric".equals(type)) {
-							if (value != null) {
-								if ("".equals(value)) {
-									value = "0";
-								}
-								if (value.contains(".")) {
-									argsArr.add(new Double(value));
-								} else {
-									argsArr.add(new Integer(value));
-								}
-								// _column_values += column + "=" + value + ",";
+						/** 如果当前字段非主键, 则将此字段匹配到set filed=? 中 */
+						_column_values_asks.append(_column);
+						_column_values_asks.append("=?,");
+						if (Constant.DataBase.FILED_TYPE_INTEGER.equals(_type) || Constant.DataBase.FILED_TYPE_NUMERIC.equals(_type)) {
+							if ("".equals(_value)) {
+								_value = "0";// 数字类型的字段不允许添加空字符串或NULL
 							}
-						} else if ("varchar".equals(type)) {
-							argsArr.add(value);
-							// _column_values += column + "='" + value + "',";
-						} else if ("date".equals(type)) {
-							if ("".equals(value)) {
+
+							/** 如果包含小数点 */
+							if (_value.contains(".")) {
+
+								/** 添加Double类型参数 */
+								argsArr.add(new Double(_value));
+							} else {
+
+								/** 添加Integer类型参数 */
+								argsArr.add(new Integer(_value));
+							}
+
+						} else if (Constant.DataBase.FILED_TYPE_VARCHAR.equals(_type)) {
+
+							/** 添加String类型参数 */
+							argsArr.add(_value);
+						} else if (Constant.DataBase.FILED_TYPE_DATE.equals(_type)) {
+							if ("".equals(_value)) {
 								argsArr.add(null);
 							} else {
-								String format = "yyyy-MM-dd HH:mm:ss";
-								if (value.trim().length() == 10) {
-									format = "yyyy-MM-dd";
-								} else if (value.trim().length() == 4) {
-									format = "yyyy";
-								} else if (value.trim().length() == 7) {
-									format = "yyyy-MM";
-								} else if (value.trim().length() == 13) {
-									format = "yyyy-MM-dd HH";
-								} else if (value.trim().length() == 16) {
-									format = "yyyy-MM-dd HH:mm";
-								}
-								argsArr.add(new java.sql.Timestamp(DateUtils.string2Date(value, format).getTime()));
-							}
-							/*
-							 * if(ConfigManager.getConstant(Constant.DataBase.
-							 * DATABASE_TYPE
-							 * ).equals(Constant.DataBase.DATABASE_TYPE_ORACLE
-							 * )){
-							 * 
-							 * if("".equals(value)){ value = null;
-							 * _column_values += column + "=" + value + ","; }
-							 * else{ _column_values += column + "=to_date('" +
-							 * value + "','yyyy-mm-dd hh24:mi:ss'),"; } } else
-							 * if(ConfigManager.getConstant(Constant.DataBase.
-							 * DATABASE_TYPE
-							 * ).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)){
-							 * if("".equals(value)){ value = null;
-							 * _column_values += column + "=" + value + ","; }
-							 * else{ _column_values += column + "='" + value +
-							 * "',"; } }
-							 */
+								final String format = DateUtils.dateStr2FormatStrForOracle(_value);
 
+								/** 添加Timestamp类型参数 */
+								argsArr.add(new java.sql.Timestamp(DateUtils.string2Date(_value, format).getTime()));
+							}
 						} else {
-							argsArr.add(value);
-							// _column_values += column + "='" + value + "',";
+
+							/** 添加String类型参数 */
+							argsArr.add(_value);
 						}
 
 					}
 				}
 			}
-			// _column_values = _column_values.substring(0,
-			// _column_values.length() - 1);
-			_column_values_asks = _column_values_asks.substring(0, _column_values_asks.length() - 1);
-			if (!"".equals(_conditions_asks)) {
-				// _conditions = _conditions.substring(0, _conditions.length() -
-				// 4);
-				_conditions_asks = _conditions_asks.substring(0, _conditions_asks.length() - 4);
-				// _sql += SQL_UPDATE + " " + rowSetName + " set " +
-				// _column_values + " where " + _conditions;
-				_sql += SQL_UPDATE + " " + rowSetName + " set " + _column_values_asks + " where " + _conditions_asks;
+
+			/** 刪除最后一次拼接的字符：, */
+			final String columnsForSet = _column_values_asks.substring(0, _column_values_asks.length() - 1);
+			if (_conditions_asks.length() > 0) {
+
+				/** 刪除最后一次拼接的字符：and */
+				final String columnsForWhere = _conditions_asks.substring(0, _conditions_asks.length() - 4);
+				_sql += SQL_UPDATE + " " + rowSetName + " set " + columnsForSet + " where " + columnsForWhere;
 			} else {
-				// _sql += SQL_UPDATE + " " + rowSetName + " set " +
-				// _column_values;
-				_sql += SQL_UPDATE + " " + rowSetName + " set " + _column_values_asks;
+				_sql += SQL_UPDATE + " " + rowSetName + " set " + columnsForSet;
 			}
 			retObj[0] = _sql;
 			argsArr.addAll(whereArr);
@@ -331,10 +345,10 @@ public class RowSetUtils {
 	}
 
 	/**
-	 * build insert sql from rowset
+	 * 获取insert语句（批量）
 	 * 
 	 * @Title: getInsertSql
-	 * @Description: TODO(这里用一句话描述这个方法的作用)
+	 * @Description: 根据RowSet的名称和行获取insert语句
 	 * @author: cjq
 	 * @date:2015年9月24日 下午4:10:14
 	 * @param rowSetName
@@ -342,76 +356,76 @@ public class RowSetUtils {
 	 * @return
 	 * @return: Object[0]:sql;Object[1]:prepared args
 	 */
-	public static Object[] getInsertSql(String rowSetName, Row row) {
-		String column, value, _table, _columns = "", _values = "", _sql = "", _asks = "";
+	protected static Object[] getInsertSql(String rowSetName, Row row) {
+
+		/** 字段名 */
+		String _column = null;
+
+		/** 主鍵标识 */
+		String _key = null;
+
+		/** 字段值 */
+		String _value = null;
+
+		/** 字段类型 */
+		String _type = null;
+
+		/** 返回的sql */
+		String _sql = "";
+
+		/** 表名 */
+		String _table = null;
+
+		/** 需要插入的字段 */
+		StringBuffer _columns = new StringBuffer(256);
+
+		/** 需要插入的值，由于是批量操作，因此此处用?代替 */
+		StringBuffer _asks = new StringBuffer(256);
+
+		/** 返回值：[0] sql语句(带问号) ;[1] 匹配问号的具体参数(数组) */
 		Object[] retObj = new Object[2];
 		try {
 			RowSetDescriptor rowSetDescript = RowSetDescriptorManager.getRowSetDescriptor(rowSetName);
 			int columnCount = rowSetDescript.getColumnCount();
-			List argsArr = new ArrayList();
+
+			/** 匹配?的具体参数（插入的值） */
+			List<Object> argsArr = new LinkedList<Object>();
 			for (int i = 0; i < columnCount; i++) {
 				ColumnDescriptor columnDescript = rowSetDescript.getColumn(i);
-				column = columnDescript.getName();
-				String type = columnDescript.getType();
+				_column = columnDescript.getName();
+				_type = columnDescript.getType();
 				_table = columnDescript.getTable();
-				value = row.getColumnValue(column);
-				if (!"".equals(_table) && !"".equals(value) && value != null && !"null".equals(value) && !"".equals(column)) {
-					_columns += column + ",";
-					_asks += "?,";
-					if ("integer".equals(type) || "numeric".equals(type)) {
-						if (value.contains(".")) {
-							argsArr.add(new Double(value));
+				_value = row.getColumnValue(_column);
+				if (!"".equals(_table) && !"".equals(_value) && _value != null && !"null".equals(_value) && !"".equals(_column)) {
+					_columns.append(_column);
+					_columns.append(",");
+					_asks.append("?,");
+
+					/** 如果当前字段是数值类型 */
+					if (Constant.DataBase.FILED_TYPE_INTEGER.equals(_type) || Constant.DataBase.FILED_TYPE_NUMERIC.equals(_type)) {
+						if (_value.contains(".")) {
+							argsArr.add(new Double(_value));
 						} else {
-							argsArr.add(new Integer(value));
+							argsArr.add(new Integer(_value));
 						}
-						// _values += "" + value + ",";
-					} else if ("varchar".equals(type)) {
-						argsArr.add(value);
-						// _values += "'" + value + "',";
-					} else if ("date".equals(type)) {
-						String format = "yyyy-MM-dd HH:mm:ss";
-						if (value.trim().length() == 10) {
-							format = "yyyy-MM-dd";
-						} else if (value.trim().length() == 4) {
-							format = "yyyy";
-						} else if (value.trim().length() == 7) {
-							format = "yyyy-MM";
-						} else if (value.trim().length() == 13) {
-							format = "yyyy-MM-dd HH";
-						} else if (value.trim().length() == 16) {
-							format = "yyyy-MM-dd HH:mm";
-						}
-						argsArr.add(new java.sql.Timestamp(DateUtils.string2Date(value, format).getTime()));
-						/*
-						 * if(ConfigManager.getConstant(Constant.DataBase.
-						 * DATABASE_TYPE
-						 * ).equals(Constant.DataBase.DATABASE_TYPE_ORACLE)){
-						 * if("".equals(value)){ value = null; _values +=
-						 * value+","; } else{ _values += "to_date('" + value +
-						 * "','yyyy-mm-dd hh24:mi:ss'),"; } } else
-						 * if(ConfigManager
-						 * .getConstant(Constant.DataBase.DATABASE_TYPE
-						 * ).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)){
-						 * _values += "'" + value + "',"; }
-						 */
-
-					} else if ("clob".equals(type)) {
-						argsArr.add(value);
-						// argsArr.add(new
-						// javax.sql.rowset.serial.SerialClob(value.toCharArray()));
+					} else if (Constant.DataBase.FILED_TYPE_VARCHAR.equals(_type)) {
+						/** 如果当前字段是字符串类型 */
+						argsArr.add(_value);
+					} else if (Constant.DataBase.FILED_TYPE_DATE.equals(_type)) {
+						/** 如果当前字段是时间类型 */
+						final String format = DateUtils.dateStr2FormatStrForOracle(_value);
+						argsArr.add(new java.sql.Timestamp(DateUtils.string2Date(_value, format).getTime()));
+					} else if (Constant.DataBase.FILED_TYPE_CLOB.equals(_type)) {
+						/** 如果当前字段是clob类型 */
+						argsArr.add(_value);
 					} else {
-						argsArr.add(value);
-						// _values += "'" + value + "',";
+						argsArr.add(_value);
 					}
-
 				}
 			}
-			// _values = _values.substring(0, _values.length() - 1);
-			_columns = _columns.substring(0, _columns.length() - 1);
-			_asks = _asks.substring(0, _asks.length() - 1);
-			// _sql += SQL_INSERT + " " + rowSetName + "(" + _columns + ") " +
-			// "values(" + _values + ")";
-			_sql += SQL_INSERT + " " + rowSetName + "(" + _columns + ") " + "values(" + _asks + ")";
+			final String insertColumns = _columns.substring(0, _columns.length() - 1);
+			final String insertAsks = _asks.substring(0, _asks.length() - 1);
+			_sql += SQL_INSERT + " " + rowSetName + "(" + insertColumns + ") " + "values(" + insertAsks + ")";
 			retObj[0] = _sql;
 			retObj[1] = argsArr.toArray();
 		} catch (Exception e) {
@@ -419,14 +433,13 @@ public class RowSetUtils {
 			throw new RuntimeException(e);
 		}
 		return retObj;
-		// return _sql;
 	}
 
 	/**
-	 * build delete sql from rowset
+	 * 获取delete语句（批量）
 	 * 
 	 * @Title: getDeleteSql
-	 * @Description: TODO(这里用一句话描述这个方法的作用)
+	 * @Description: 根据RowSet的名称和行获取insert语句
 	 * @author: cjq
 	 * @date:2015年9月25日 上午8:46:42
 	 * @param rowSetName
@@ -434,83 +447,79 @@ public class RowSetUtils {
 	 * @return
 	 * @return: Object[0]:sql;Object[1]:prepared args
 	 */
-	public static Object[] getDeleteSql(String rowSetName, Row row) {
-		String column, key, value, _table, _conditions = "", _sql = "", _preparedConditions = "";
+	protected static Object[] getDeleteSql(String rowSetName, Row row) {
+
+		/** 字段名 */
+		String _column = null;
+
+		/** 主鍵标识 */
+		String _key = null;
+
+		/** 字段值 */
+		String _value = null;
+
+		/** 字段类型 */
+		String _type = null;
+
+		/** 返回的sql */
+		String _sql = "";
+
+		/** 表名 */
+		String _table = null;
+
+		/** 删除语句的的where条件：字段=？ */
+		StringBuffer _delCondition = new StringBuffer(128);
+
+		/** 返回值：[0] sql语句(带问号) ;[1] 匹配问号的具体参数(数组) */
 		Object[] retObj = new Object[2];
 		try {
 			RowSetDescriptor rowSetDescript = RowSetDescriptorManager.getRowSetDescriptor(rowSetName);
 			int columnCount = rowSetDescript.getColumnCount();
-			List argsArr = new ArrayList();
+
+			/** 匹配?的具体参数（where条件） */
+			List<Object> argsArr = new LinkedList<Object>();
 			for (int i = 0; i < columnCount; i++) {
 				ColumnDescriptor columnDescript = rowSetDescript.getColumn(i);
-				String type = columnDescript.getType();
-				column = columnDescript.getName();
+				_type = columnDescript.getType();
+				_column = columnDescript.getName();
 				_table = columnDescript.getTable();
-				if (!"".equals(_table) && !"".equals(column)) {
-					key = columnDescript.getKey();
-					value = row.getColumnValue(column);
-					if (value == null || "".equals(value) || "null".equals(value)) {
+				if ((!StringUtils.checkNullOrEmptyString(_table)) && (!StringUtils.checkNullOrEmptyString(_column))) {
+					_key = columnDescript.getKey();
+					_value = row.getColumnValue(_column);
+					if (_value == null || "".equals(_value) || "null".equals(_value)) {
 						continue;
 					}
-					// if (key.equals("true")||key.equals("false"))
-					if (key.equals("true")) // 暂时屏蔽无主键的table删除功能
-					{
-						_preparedConditions += column + "= ? and ";
-						if ("integer".equals(type) || "numeric".equals(type)) {
-							if (value.contains(".")) {
-								argsArr.add(new Double(value));
-							} else {
-								argsArr.add(new Integer(value));
-							}
-							// _conditions += column + "=" + value + " and ";
-						} else if ("varchar".equals(type)) {
-							argsArr.add(value);
-							// _conditions += column + "='" + value + "' and ";
-						} else if ("date".equals(type)) {
-							String format = "yyyy-MM-dd HH:mm:ss";
-							if (value.trim().length() == 10) {
-								format = "yyyy-MM-dd";
-							} else if (value.trim().length() == 4) {
-								format = "yyyy";
-							} else if (value.trim().length() == 7) {
-								format = "yyyy-MM";
-							} else if (value.trim().length() == 13) {
-								format = "yyyy-MM-dd HH";
-							} else if (value.trim().length() == 16) {
-								format = "yyyy-MM-dd HH:mm";
-							}
-							argsArr.add(new java.sql.Timestamp(DateUtils.string2Date(value, format).getTime()));
-							// 临时解决delete删除问题
-							/*
-							 * value = value.substring(0, 10);
-							 * if(ConfigManager.getConstant
-							 * (Constant.DataBase.DATABASE_TYPE
-							 * ).equals(Constant.
-							 * DataBase.DATABASE_TYPE_ORACLE)){ _conditions +=
-							 * "to_char("+column + ",'yyyy-mm-dd')='" + value +
-							 * "' and "; } else
-							 * if(ConfigManager.getConstant(Constant
-							 * .DataBase.DATABASE_TYPE
-							 * ).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)){
-							 * _conditions += column + "='" + value + "' and ";
-							 * }
-							 */
 
+					/** 只有key为true的情况下 才能作为删除语句的where条件 */
+					if (_key.equals("true")) {
+						_delCondition.append(_column);
+						_delCondition.append("= ? and ");
+						if (Constant.DataBase.FILED_TYPE_INTEGER.equals(_type) || Constant.DataBase.FILED_TYPE_NUMERIC.equals(_type)) {
+							if (_value.contains(".")) {
+								argsArr.add(new Double(_value));
+							} else {
+								argsArr.add(new Integer(_value));
+							}
+						} else if (Constant.DataBase.FILED_TYPE_VARCHAR.equals(_type)) {
+							/** 如果当前字段是字符串类型 */
+							argsArr.add(_value);
+						} else if (Constant.DataBase.FILED_TYPE_DATE.equals(_type)) {
+							/** 如果当前字段是时间类型 */
+							final String format = DateUtils.dateStr2FormatStrForOracle(_value);
+
+							/** 添加Timestamp类型参数 */
+							argsArr.add(new java.sql.Timestamp(DateUtils.string2Date(_value, format).getTime()));
 						} else {
-							argsArr.add(value);
-							// _conditions += column + "='" + value + "' and ";
+							argsArr.add(_value);
 						}
 
 					}
 				}
 			}
-			if (!"".equals(_preparedConditions)) {
-				// _conditions = _conditions.substring(0, _conditions.length() -
-				// 4);
-				_preparedConditions = _preparedConditions.substring(0, _preparedConditions.length() - 4);
-				// _sql += SQL_DELETE + " " + rowSetName + " where " +
-				// _conditions;
-				_sql += SQL_DELETE + " " + rowSetName + " where " + _preparedConditions;
+			if (_delCondition.length() > 0) {
+				/** 刪除最后一次拼接的字符：and */
+				final String conditionForWhere = _delCondition.substring(0, _delCondition.length() - 4);
+				_sql += SQL_DELETE + " " + rowSetName + " where " + conditionForWhere;
 			} else {
 				_sql += SQL_DELETE + " " + rowSetName;
 			}
@@ -523,44 +532,36 @@ public class RowSetUtils {
 		return retObj;
 	}
 
-	/*
-	 * public static String getSelectSql(String rowSetName, Row row) { String
-	 * column, key, value, _conditions = "", _sql = ""; try { RowSetDescriptor
-	 * rowSetDescript = RowSetDescriptorManager.getRowSetDescriptor(rowSetName);
-	 * int columnCount = rowSetDescript.getColumnCount(); for (int i = 0; i <
-	 * columnCount; i++) { ColumnDescriptor columnDescript =
-	 * rowSetDescript.getColumn(i); column = columnDescript.getName();
-	 * if(!"".equals(column)) { key = columnDescript.getKey(); value =
-	 * row.getColumnValue(column); if (key.equals("true")) { _conditions +=
-	 * column + "='" + value + "' and "; } } } if (!"".equals(_conditions)) {
-	 * _conditions = _conditions.substring(0, _conditions.length() - 4); _sql +=
-	 * SQL_SELECT + " " + rowSetName + " where " + _conditions; } else { _sql +=
-	 * SQL_SELECT + " " + rowSetName; } } catch (Exception e) {
-	 * logger.error(e.getMessage()); throw new RuntimeException(e); } return
-	 * _sql; }
+	/**
+	 * 根据RowSet的名称和行获取SQL语句
+	 * <p>
+	 * Description:
+	 * </p>
 	 * 
-	 * //暂时该方法没有被调用 public static String assembeSQL(String rowSetName, Row row)
-	 * { String _sql = null;
-	 * 
-	 * String status = row.getStatus();
-	 * 
-	 * if (status.equals(RowConstant.MODIFY_STATUS)) { _sql =
-	 * RowSetUtils.getUpdateSql(rowSetName, row); }
-	 * 
-	 * if (status.equals(RowConstant.NEW_STATUS)) { _sql =
-	 * RowSetUtils.getInsertSql(rowSetName, row); }
-	 * 
-	 * if (status.equals(RowConstant.DELETE_STATUS)) { _sql =
-	 * RowSetUtils.getDeleteSql(rowSetName, row); }
-	 * 
-	 * return _sql; }
+	 * @param rowSetName
+	 * @param row
+	 * @return
+	 * @author changjq
+	 * @date 2016年10月9日
 	 */
+	public static Object[] assembeSql(String rowSetName, Row row) {
+		Object[] retObj = null;
+		final String status = row.getStatus();
+		if (status.equals(RowConstant.MODIFY_STATUS)) {
+			retObj = getUpdateSql(rowSetName, row);
+		} else if (status.equals(RowConstant.NEW_STATUS)) {
+			retObj = getInsertSql(rowSetName, row);
+		} else if (status.equals(RowConstant.DELETE_STATUS)) {
+			retObj = getDeleteSql(rowSetName, row);
+		}
+		return retObj;
+	}
 
 	/**
-	 * 获取非批量修改sql
+	 * 获取update sql语句（非批量形式）
 	 * 
 	 * @Title: getUpdateSqlNotBatch
-	 * @Description: TODO(这里用一句话描述这个方法的作用)
+	 * @Description: 根据RowSet的名称和行获取update语句
 	 * @author: cjq
 	 * @date:2015年12月1日 下午2:38:49
 	 * @param rowSetName
@@ -568,238 +569,159 @@ public class RowSetUtils {
 	 * @return
 	 * @return: String
 	 */
-	public static String getUpdateSqlNotBatch(String rowSetName, Row row) {
-		String column, key, value, _table, _conditions = "", _column_values = "", _sql = "";
+	protected static String getUpdateSqlNotBatch(String rowSetName, Row row) {
+
+		/** 字段名 */
+		String _column = null;
+
+		/** 主鍵标识 */
+		String _key = null;
+
+		/** 字段值 */
+		String _value = null;
+
+		/** 字段类型 */
+		String _type = null;
+
+		/** 表名 */
+		String _table = null;
+
+		/** 返回的sql */
+		String _sql = "";
+
+		/** where条件 */
+		StringBuffer _conditions = new StringBuffer(128);
+
+		/** set的字段和值 */
+		StringBuffer _column_values = new StringBuffer(256);
 		try {
 			RowSetDescriptor rowSetDescript = RowSetDescriptorManager.getRowSetDescriptor(rowSetName);
 			int columnCount = rowSetDescript.getColumnCount();
 			for (int i = 0; i < columnCount; i++) {
 				ColumnDescriptor columnDescript = rowSetDescript.getColumn(i);
-				column = columnDescript.getName();
+				_column = columnDescript.getName();
 				_table = columnDescript.getTable();
-				if (!"".equals(_table) && !"".equals(column)) {
-					key = columnDescript.getKey();
-					String type = columnDescript.getType();
-					value = row.getColumnValue(column);
-					if (value == null || "null".equals(value)) {
+				_type = columnDescript.getType();
+				if ((!StringUtils.checkNullOrEmptyString(_table)) && (!StringUtils.checkNullOrEmptyString(_column))) {
+					_key = columnDescript.getKey();
+					_value = row.getColumnValue(_column);
+					if (_value == null || "null".equals(_value)) {
 						continue;
 					}
-					if (key.equals("true")) {
-						if ("integer".equals(type) || "numeric".equals(type)) {
-							_conditions += column + "=" + value + " and ";
-						} else if ("varchar".equals(type)) {
-							_conditions += column + "='" + value + "' and ";
-						} else if ("date".equals(type)) {
+
+					/** 如果是主键，则作为where条件，暂不支持修改主键 */
+					if (_key.equals("true")) {
+						if (Constant.DataBase.FILED_TYPE_INTEGER.equals(_type) || Constant.DataBase.FILED_TYPE_NUMERIC.equals(_type)) {
+							_conditions.append(_column);
+							_conditions.append("=");
+							_conditions.append(_value);
+							_conditions.append(" and ");
+						} else if (Constant.DataBase.FILED_TYPE_VARCHAR.equals(_type)) {
+							/** 如果当前字段是字符串类型 */
+							_conditions.append(_column);
+							_conditions.append("='");
+							_conditions.append(_value);
+							_conditions.append("' and ");
+						} else if (Constant.DataBase.FILED_TYPE_DATE.equals(_type)) {
+							/** 如果当前字段是时间类型 */
 							if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_ORACLE)) {
-								if ("".equals(value)) {
-									_conditions += column + " is null and ";
+								final String format = DateUtils.dateStr2FormatStrForOracle(_value);
+								if ("".equals(_value)) {
+									_conditions.append(_column);
+									_conditions.append(" is null and ");
 								} else {
-									_conditions += "to_char(" + column + ",'yyyy-mm-dd')='" + value + "' and ";
+									_conditions.append("to_char(");
+									_conditions.append(_column);
+									_conditions.append(",'");
+									_conditions.append(format);
+									_conditions.append("')='");
+									_conditions.append(_value);
+									_conditions.append("' and ");
 								}
 							} else if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)) {
-								if ("".equals(value)) {
-									_conditions += column + " is null and ";
+								if ("".equals(_value)) {
+									_conditions.append(_column);
+									_conditions.append(" is null and ");
 								} else {
-									_conditions += column + "='" + value + "' and ";
+									_conditions.append(_column);
+									_conditions.append("='");
+									_conditions.append(_value);
+									_conditions.append("' and ");
 								}
-							}
-						} else {
-							_conditions += column + "='" + value + "' and ";
-						}
-					} else {
-						if ("integer".equals(type) || "numeric".equals(type)) {
-							if (value != null) {
-								if ("".equals(value)) {
-									value = "0";
-								}
-								_column_values += column + "=" + value + ",";
-							}
-						} else if ("varchar".equals(type)) {
-							_column_values += column + "='" + value + "',";
-						} else if ("date".equals(type)) {
-							if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_ORACLE)) {
-
-								if ("".equals(value)) {
-									value = null;
-									_column_values += column + "=" + value + ",";
-								} else {
-									_column_values += column + "=to_date('" + value + "','yyyy-mm-dd hh24:mi:ss'),";
-								}
-							} else if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)) {
-								if ("".equals(value)) {
-									value = null;
-									_column_values += column + "=" + value + ",";
-								} else {
-									_column_values += column + "='" + value + "',";
-								}
-							}
-
-						} else {
-							_column_values += column + "='" + value + "',";
-						}
-
-					}
-				}
-			}
-			_column_values = _column_values.substring(0, _column_values.length() - 1);
-			if (!"".equals(_conditions)) {
-				_conditions = _conditions.substring(0, _conditions.length() - 4);
-				_sql += SQL_UPDATE + " " + rowSetName + " set " + _column_values + " where " + _conditions;
-			} else {
-				_sql += SQL_UPDATE + " " + rowSetName + " set " + _column_values;
-			}
-		} catch (Exception e) {
-			logger.error(e.getMessage());
-			throw new RuntimeException(e);
-		}
-		return _sql;
-	}
-
-	/**
-	 * 获取非批量插入sql
-	 * 
-	 * @Title: getInsertSqlNotBatch
-	 * @Description: TODO(这里用一句话描述这个方法的作用)
-	 * @author: cjq
-	 * @date:2015年12月1日 下午2:37:49
-	 * @param rowSetName
-	 * @param row
-	 * @return
-	 * @return: Object[]
-	 */
-	public static Object[] getInsertSqlNotBatch(String rowSetName, Row row) {
-		String column, value, _table, _columns = "", _values = "", _sql = "", _asks = "";
-		Object[] retObj = new Object[2];
-		;
-		try {
-			RowSetDescriptor rowSetDescript = RowSetDescriptorManager.getRowSetDescriptor(rowSetName);
-			int columnCount = rowSetDescript.getColumnCount();
-			ArrayList argsArr = new ArrayList();
-			for (int i = 0; i < columnCount; i++) {
-				ColumnDescriptor columnDescript = rowSetDescript.getColumn(i);
-				column = columnDescript.getName();
-				String type = columnDescript.getType();
-				_table = columnDescript.getTable();
-				value = row.getColumnValue(column);
-				if (!"".equals(_table) && !"".equals(value) && value != null && !"null".equals(value) && !"".equals(column)) {
-					_columns += column + ",";
-					_asks += "?,";
-					if ("integer".equals(type) || "numeric".equals(type)) {
-						if (value.contains(".")) {
-							argsArr.add(new Double(value));
-						} else {
-							argsArr.add(new Integer(value));
-						}
-						_values += "" + value + ",";
-					} else if ("varchar".equals(type)) {
-						argsArr.add(value);
-						_values += "'" + value + "',";
-					} else if ("date".equals(type)) {
-						String format = "yyyy-MM-dd hh:mm:ss";
-						if (value.trim().length() == 10) {
-							format = "yyyy-MM-dd";
-						} else if (value.trim().length() == 4) {
-							format = "yyyy";
-						} else if (value.trim().length() == 7) {
-							format = "yyyy-MM";
-						} else if (value.trim().length() == 13) {
-							format = "yyyy-MM-dd HH";
-						} else if (value.trim().length() == 16) {
-							format = "yyyy-MM-dd HH:mm";
-						}
-						argsArr.add(new java.sql.Timestamp(DateUtils.string2Date(value, format).getTime()));
-						if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_ORACLE)) {
-							if ("".equals(value)) {
-								value = null;
-								_values += value + ",";
 							} else {
-								_values += "to_date('" + value + "','yyyy-mm-dd hh24:mi:ss'),";
-							}
-						} else if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)) {
-							_values += "'" + value + "',";
-						}
-
-					} else if ("clob".equals(type)) {
-						argsArr.add(new javax.sql.rowset.serial.SerialClob(value.toCharArray()));
-					} else {
-						argsArr.add(value);
-						_values += "'" + value + "',";
-					}
-
-				}
-			}
-			_values = _values.substring(0, _values.length() - 1);
-			_columns = _columns.substring(0, _columns.length() - 1);
-			_asks = _asks.substring(0, _asks.length() - 1);
-			// _sql += SQL_INSERT + " " + rowSetName + "(" + _columns + ") " +
-			// "values(" + _values + ")";
-			_sql += SQL_INSERT + " " + rowSetName + "(" + _columns + ") " + "values(" + _asks + ")";
-			retObj[0] = _sql;
-			retObj[1] = argsArr.toArray();
-		} catch (Exception e) {
-			logger.error(e.getMessage());
-			throw new RuntimeException(e);
-		}
-		return retObj;
-		// return _sql;
-	}
-
-	/**
-	 * 获取非批量删除sql
-	 * 
-	 * @Title: getDeleteSqlNotBatch
-	 * @Description: TODO(这里用一句话描述这个方法的作用)
-	 * @author: cjq
-	 * @date:2015年12月1日 下午2:39:51
-	 * @param rowSetName
-	 * @param row
-	 * @return
-	 * @return: String
-	 */
-	public static String getDeleteSqlNotBatch(String rowSetName, Row row) {
-		String column, key, value, _table, _conditions = "", _sql = "";
-		try {
-			RowSetDescriptor rowSetDescript = RowSetDescriptorManager.getRowSetDescriptor(rowSetName);
-			int columnCount = rowSetDescript.getColumnCount();
-			for (int i = 0; i < columnCount; i++) {
-				ColumnDescriptor columnDescript = rowSetDescript.getColumn(i);
-				String type = columnDescript.getType();
-				column = columnDescript.getName();
-				_table = columnDescript.getTable();
-				if (!"".equals(_table) && !"".equals(column)) {
-					key = columnDescript.getKey();
-					value = row.getColumnValue(column);
-					if (value == null || "".equals(value) || "null".equals(value)) {
-						continue;
-					}
-					// if (key.equals("true")||key.equals("false"))
-					if (key.equals("true")) // 暂时屏蔽无主键的table删除功能
-					{
-						if ("integer".equals(type) || "numeric".equals(type)) {
-							_conditions += column + "=" + value + " and ";
-						} else if ("varchar".equals(type)) {
-							_conditions += column + "='" + value + "' and ";
-						} else if ("date".equals(type)) {
-							// 临时解决delete删除问题
-							value = value.substring(0, 10);
-							if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_ORACLE)) {
-								_conditions += "to_char(" + column + ",'yyyy-mm-dd')='" + value + "' and ";
-							} else if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)) {
-								_conditions += column + "='" + value + "' and ";
+								_conditions.append(_column);
+								_conditions.append("='");
+								_conditions.append(_value);
+								_conditions.append("' and ");
 							}
 
 						} else {
-							_conditions += column + "='" + value + "' and ";
+							_conditions.append(_column);
+							_conditions.append("='");
+							_conditions.append(_value);
+							_conditions.append("' and ");
+						}
+					} else {
+						if (Constant.DataBase.FILED_TYPE_INTEGER.equals(_type) || Constant.DataBase.FILED_TYPE_NUMERIC.equals(_type)) {
+							if (_value != null) {
+								if ("".equals(_value)) {
+									_value = "0";
+								}
+								_column_values.append(_column);
+								_column_values.append("=");
+								_column_values.append(_value);
+								_column_values.append(",");
+							}
+						} else if (Constant.DataBase.FILED_TYPE_VARCHAR.equals(_type)) {
+							/** 如果当前字段是字符串类型 */
+							_column_values.append(_column);
+							_column_values.append("='");
+							_column_values.append(_value);
+							_column_values.append("',");
+						} else if (Constant.DataBase.FILED_TYPE_DATE.equals(_type)) {
+							/** 如果当前字段是时间类型 */
+							if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_ORACLE)) {
+								// final String format =
+								// DateUtils.dateStr2FormatStrForOracle(_value);
+								if ("".equals(_value)) {
+									_value = null;
+									_column_values.append(_column);
+									_column_values.append("= null ,");
+								} else {
+									_column_values.append(_column);
+									_column_values.append("=to_date('");
+									_column_values.append(_value);
+									_column_values.append("','yyyy-mm-dd hh24:mi:ss'),");
+								}
+							} else if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_MYSQL)) {
+								if ("".equals(_value)) {
+									_value = null;
+									_column_values.append(_column);
+									_column_values.append("= null ,");
+								} else {
+									_column_values.append(_column);
+									_column_values.append("='");
+									_column_values.append(_value);
+									_column_values.append("',");
+								}
+							}
+
+						} else {
+							_column_values.append(_column);
+							_column_values.append("='");
+							_column_values.append(_value);
+							_column_values.append("',");
 						}
 
 					}
 				}
 			}
-			if (!"".equals(_conditions)) {
-				_conditions = _conditions.substring(0, _conditions.length() - 4);
-				_sql += SQL_DELETE + " " + rowSetName + " where " + _conditions;
+			final String columnValues = _column_values.substring(0, _column_values.length() - 1);
+			if (_conditions.length() > 0) {
+				final String whereConditions = _conditions.substring(0, _conditions.length() - 4);
+				_sql += SQL_UPDATE + " " + rowSetName + " set " + columnValues + " where " + whereConditions;
 			} else {
-				_sql += SQL_DELETE + " " + rowSetName;
+				_sql += SQL_UPDATE + " " + rowSetName + " set " + columnValues;
 			}
 		} catch (Exception e) {
 			logger.error(e.getMessage());

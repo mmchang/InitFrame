@@ -1,15 +1,16 @@
 package com.lnpc.common.utils;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class LightConfigLoader {
-	private static Logger logger = Logger.getLogger(LightConfigLoader.class);
+	private static Logger logger = LoggerFactory.getLogger(LightConfigLoader.class);
 	private Map<String,String> infoMap=null;
 	public Map<String,String> getInfoMap(){
 		return this.infoMap;
@@ -31,7 +32,7 @@ public class LightConfigLoader {
 			resourceHandler.initPropertyResourceBundle(resPath);
 		}
 		catch(Exception e){
-			logger.error(resPath+" resourceHandler initPropertyResourceBundle failed.");
+			logger.error("{} resourceHandler initPropertyResourceBundle failed.",resPath);
 			e.printStackTrace();
 		}
 		Set<String> keys=resourceHandler.resourceBundle.keySet();

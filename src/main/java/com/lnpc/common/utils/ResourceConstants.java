@@ -2,7 +2,9 @@ package com.lnpc.common.utils;
 
 import java.util.Map;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * lnpc.properties属性文件相关操作类
@@ -11,7 +13,7 @@ import org.apache.log4j.Logger;
  * 
  */
 public class ResourceConstants {
-	private static Logger logger = Logger.getLogger(ResourceConstants.class);
+	private static Logger logger = LoggerFactory.getLogger(ResourceConstants.class);
 	private static String filePath = null;
 	private final static String PROPERTIES_NAME = "lnpc.properties";
 	private static Map<String, String> resource = null;

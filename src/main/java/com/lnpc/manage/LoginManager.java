@@ -3,8 +3,8 @@ package com.lnpc.manage;
 import java.io.File;
 import java.util.List;
 
-import org.jdom.Document;
-import org.jdom.Element;
+import org.dom4j.Document;
+import org.dom4j.Element;
 
 import com.lnpc.common.DataCenter;
 import com.lnpc.common.config.Constant;
@@ -38,10 +38,10 @@ public class LoginManager {
 	
 	private final static void commonLogin(DataCenter request,DataCenter response,String path) throws Exception{
 		Document document = XmlUtils.createDocument(new File(path));
-		List<Element> loginList = XmlUtils.selectNodes(document, "loginModlue");
+		List<?> loginList = document.selectNodes("loginModlue");
 		for(int i=0;i<loginList.size();i++){
-			Element elem = loginList.get(i);
-			if("true".equals(elem.getAttributeValue("load"))){
+			Element elem = (Element) loginList.get(i);
+			if("true".equals(elem.attributeValue("load"))){
 				String loginClass = elem.getTextTrim();
 				ILogin loginService = (ILogin) BeanUtils.getBean(loginClass);
 				loginService.check(request,response);

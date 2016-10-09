@@ -32,6 +32,20 @@ public class Constant {
 		public final static String DATABASE_TYPE_MYSQL = "MYSQL";
 		public final static String DATABASE_TYPE_SQLSERVER = "SQLSERVER";
 		public final static String DATABASE_TYPE = "DATABASE_TYPE";
+		
+		public final static String FILED_TYPE_INTEGER = "integer";
+		public final static String FILED_TYPE_NUMERIC = "numeric";
+		public final static String FILED_TYPE_VARCHAR = "varchar";
+		public final static String FILED_TYPE_DATE = "date";
+		public final static String FILED_TYPE_TINYINT = "tinyint";
+		public final static String FILED_TYPE_CHAR = "char";
+		public final static String FILED_TYPE_SMALLINT = "smallint";
+		public final static String FILED_TYPE_FLOAT = "float";
+		public final static String FILED_TYPE_REAL = "real";
+		public final static String FILED_TYPE_DOUBLE = "double";
+		public final static String FILED_TYPE_TIMESTAMP = "timestamp";
+		public final static String FILED_TYPE_BLOB = "blob";
+		public final static String FILED_TYPE_CLOB = "clob";
 	}
 	public final class Login{
 		public final static String CURRENT_ADMIN = "CURRENT_ADMIN";

@@ -7,8 +7,8 @@ import java.io.UnsupportedEncodingException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.log4j.Logger;
-import org.apache.struts2.ServletActionContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.lnpc.common.DataCenter;
 
@@ -19,7 +19,7 @@ import com.lnpc.common.DataCenter;
  * 
  */
 public class HttpUtils {
-	private static Logger logger = Logger.getLogger(HttpUtils.class);
+	private static Logger logger = LoggerFactory.getLogger(HttpUtils.class);
 
 	/**
 	 * 根据不同浏览器的编码，获取编码后的下载文件名
@@ -82,7 +82,7 @@ public class HttpUtils {
 	public static String result(String str, DataCenter req, DataCenter resp) {
 		String ret = null;
 		if ("true".equals(req.getAsync())) {
-			writeResponse(ServletActionContext.getResponse(), resp.toJSON());
+			writeResponse(req.getResponse(), resp.toJSON());
 		} else {
 			if (resp.finish() == 0) {
 				ret = str;

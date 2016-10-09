@@ -6,11 +6,13 @@ import java.io.InputStreamReader;
 import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class ResourceHandler {
 	ResourceBundle resourceBundle;
-	private static Logger logger = Logger.getLogger(ResourceHandler.class);
+	private static Logger logger = LoggerFactory.getLogger(ResourceHandler.class);
 	public void initPropertyResourceBundle(String resPath) throws Exception{
 		InputStream in=null;
 		FileInputStream fileInputStream=null;
@@ -19,7 +21,7 @@ public class ResourceHandler {
 			resourceBundle=new PropertyResourceBundle(new InputStreamReader(fileInputStream,"UTF-8"));
 		}
 		catch(Exception e){
-			logger.error("load the resource file "+resPath+"failed.");
+			logger.error("load the resource file {} failed.",resPath);
 			e.printStackTrace();
 		}
 		finally{

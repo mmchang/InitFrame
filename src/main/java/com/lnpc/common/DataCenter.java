@@ -600,4 +600,13 @@ public class DataCenter implements Serializable {
 		 */
 		this.variables.put(Constant.SERVER_LOCAL_TIME, DateUtils.date2String(new Date(), "yyyy-MM-dd"));
 	}
+
+	public HttpServletResponse getResponse() {
+		return response;
+	}
+
+	public HttpServletRequest getRequest() {
+		return request;
+	}
+	
 }

@@ -12,8 +12,10 @@ dependencies {
 		'com.alibaba:fastjson:1.2.17',
 		'commons-collections:commons-collections:3.2',
 		"org.springframework:spring-web:3.2.4.RELEASE", 
-		"org.springframework:spring-webmvc:3.2.4.RELEASE"
+		"org.springframework:spring-webmvc:3.2.4.RELEASE",
+		"org.springframework:spring-jdbc:3.2.4.RELEASE"
 	)
+	compile files('lib/ojdbc6.jar')
 }
 
 repositories {

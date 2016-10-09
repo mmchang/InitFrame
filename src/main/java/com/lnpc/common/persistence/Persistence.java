@@ -19,7 +19,8 @@ import javax.sql.rowset.serial.SerialException;
 
 import oracle.sql.ROWID;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.jdbc.InvalidResultSetAccessException;
@@ -47,8 +48,8 @@ import com.lnpc.manage.ConfigManager;
  * 
  */
 public class Persistence extends JdbcDaoSupport {
-	private static Logger logger = Logger.getLogger(Persistence.class);
-	private String _condition = "", _order = "", _sql = "", _totalCountSql = "", _group = "";
+	private static Logger logger = LoggerFactory.getLogger(Persistence.class);
+	private String _condition = "", _order = "", _sql = "", _totalCountSql = "";
 	/**
 	 * 总数据条数
 	 */
@@ -136,11 +137,9 @@ public class Persistence extends JdbcDaoSupport {
 					String status = rs.getRowByIndex(k).getStatus();
 					String sql = null;
 					Object [] args = null;
-					if (status.equals(RowConstant.NEW_STATUS)) {
-						objArr = RowSetUtils.getInsertSql(rowSetName, rs.getRowByIndex(k));
-						sql = (String) objArr[0];
-						args = (Object[]) objArr[1];
-					}
+					objArr = RowSetUtils.assembeSql(rowSetName, rs.getRowByIndex(k));
+					sql = (String) objArr[0];
+					args = (Object[]) objArr[1];
 					logger.info("The sql is:" + sql + ".");
 					if (sql != null && !"".equals(sql)) {
 						final String innerSql = sql;
@@ -207,24 +206,13 @@ public class Persistence extends JdbcDaoSupport {
 				int length = rs.getRowCount();
 				Object [] retArr = null;
 				for (int k = 0; k < length; k++) {
-					String status = rs.getRowByIndex(k).getStatus();
 					String sql = null;
 					Object [] args = null;
-					if (status.equals(RowConstant.MODIFY_STATUS)) {
-						sql = RowSetUtils.getUpdateSqlNotBatch(rowSetName, rs.getRowByIndex(k));
-					}
-
-					if (status.equals(RowConstant.NEW_STATUS)) {
-						retArr = RowSetUtils.getInsertSqlNotBatch(rowSetName, rs.getRowByIndex(k));
-						sql = (String) retArr[0];
-						args =  (Object[]) retArr[1];
-					}
-
-					if (status.equals(RowConstant.DELETE_STATUS)) {
-						sql = RowSetUtils.getDeleteSqlNotBatch(rowSetName, rs.getRowByIndex(k));
-					}
+					retArr = RowSetUtils.assembeSql(rowSetName, rs.getRowByIndex(k));
+					sql = (String) retArr[0];
+					args =  (Object[]) retArr[1];
 					logger.info("The sql is:" + sql + ".");
-					if (sql != null && !"".equals(sql)) {
+					if (!StringUtils.checkNullOrEmptyString(sql)) {
 						int result = this.getJdbcTemplate().update(sql,args);
 						ret = ret + result;
 					}
@@ -259,28 +247,12 @@ public class Persistence extends JdbcDaoSupport {
 				Object [] argsArr = new Object[length];
 				for (int k = 0; k < length; k++) {
 					Object [] retArr = null;
-					String status = rs.getRowByIndex(k).getStatus();
 					String sql = null;
 					Object [] args = null;
-					if (status.equals(RowConstant.MODIFY_STATUS)) {
-						retArr = RowSetUtils.getUpdateSql(rowSetName, rs.getRowByIndex(k));
-					}
-					else if (status.equals(RowConstant.NEW_STATUS)) {
-						retArr = RowSetUtils.getInsertSql(rowSetName, rs.getRowByIndex(k));
-					}
-
-					else if (status.equals(RowConstant.DELETE_STATUS)) {
-						retArr = RowSetUtils.getDeleteSql(rowSetName, rs.getRowByIndex(k));
-					}
+					retArr = RowSetUtils.assembeSql(rowSetName, rs.getRowByIndex(k));
 					sql = (String) retArr[0];
 					args =  (Object[]) retArr[1];
 					argsArr[k] = args;
-					/*if (sql != null && !"".equals(sql)) {
-						//临时解决clob问题，以后需要改成批量操作
-						int result = this.getJdbcTemplate().update(sql,args);
-						
-						ret = ret + result;
-					}*/
 					if(k==0){//暂时每次都要构建sql，后续改善
 						_sql = sql;
 					}
@@ -335,9 +307,7 @@ public class Persistence extends JdbcDaoSupport {
 	 * @author changjq
 	 */
 	private void initializeSQL() {
-		if (_sql.toLowerCase().startsWith("select")) {
-			String _groupBy = "";
-			String groupBy_ = "";
+		if (_sql.trim().toLowerCase().startsWith("select")) {
 			if (this.currentPage != -1) {
 				int pageBegin = (currentPage - 1) * sizePerPage;
 				int pageEnd = currentPage * sizePerPage;
@@ -345,31 +315,7 @@ public class Persistence extends JdbcDaoSupport {
 				if (!"".equals(this._condition)) {
 					_totalCountSql += " where " + _condition;
 				}
-				/*
-				 * if(!"".equals(this._group)){ String [] arrGroup =
-				 * this._group.split(","); StringBuffer newCountSql= new
-				 * StringBuffer(1024); StringBuffer groupBySql= new
-				 * StringBuffer(1024); newCountSql.append("SELECT ");
-				 * groupBySql.append(" GROUP BY "); for(int
-				 * i=0;i<arrGroup.length;i++){ String group = arrGroup[i]; int
-				 * _index1 = group.indexOf("("); if(_index1!=-1){
-				 * newCountSql.append(group.substring(0, _index1+1));
-				 * newCountSql.append("GROUPTABLE.");
-				 * newCountSql.append(group.substring(_index1+1)); } else{ final
-				 * String gb = "GROUPTABLE."+group; newCountSql.append(gb);
-				 * groupBySql.append(gb); groupBySql.append(","); }
-				 * newCountSql.append(","); } final String _newCountSql =
-				 * newCountSql.substring(0, newCountSql.length() - 1); final
-				 * String _groupBySql = groupBySql.substring(0,
-				 * groupBySql.length() - 1); StringBuffer finalGroupSql = new
-				 * StringBuffer(_newCountSql); finalGroupSql.append(" from (");
-				 * _groupBy = finalGroupSql.toString();
-				 * finalGroupSql.append(_totalCountSql);
-				 * finalGroupSql.append(") GROUPTABLE");
-				 * finalGroupSql.append(_groupBySql); groupBy_ +=") GROUPTABLE";
-				 * groupBy_ +=_groupBySql; _totalCountSql =
-				 * finalGroupSql.toString(); }
-				 */
+				
 				_totalCountSql = "select count(*) from (" + _totalCountSql + ") TEMPTABLE";
 				// oracle
 				if (ConfigManager.getConstant(Constant.DataBase.DATABASE_TYPE).equals(Constant.DataBase.DATABASE_TYPE_ORACLE)) {
@@ -377,12 +323,12 @@ public class Persistence extends JdbcDaoSupport {
 					_sql2.append("SELECT TEMP1.*,ROWNUM RN FROM (");
 					_sql2.append(_sql);
 					if (!"".equals(this._condition)) {
-						String finalCondition = " where " + _condition;
+						final String finalCondition = " where " + _condition;
 						_sql2.append(finalCondition);
 					}
 					
 					if (!"".equals(this._order)) {
-						String finalOrder = " order by " + _order;
+						final String finalOrder = " order by " + _order;
 						_sql2.append(finalOrder);
 					}
 					_sql2.append(") TEMP1");
@@ -406,7 +352,6 @@ public class Persistence extends JdbcDaoSupport {
 					String mysqlPageCondition = " limit " + pageBegin + "," + sizePerPage;
 					_sql += mysqlPageCondition;
 				}
-
 			} else {
 				if (!"".equals(this._condition)) {
 					_sql += " where " + _condition;
@@ -417,10 +362,6 @@ public class Persistence extends JdbcDaoSupport {
 					_sql += " order by " + _order;
 				}
 			}
-			/*
-			 * if (!"".equals(this._group)) { _sql = _groupBy + _sql; _sql =
-			 * _sql + groupBy_; }
-			 */
 		} else {
 			if (!"".equals(this._condition)) {
 				_sql += " where " + _condition;
@@ -501,7 +442,7 @@ public class Persistence extends JdbcDaoSupport {
 			for (int k = 1; k <= metaData.getColumnCount(); k++) {
 				String t = StringUtils.getStringFieldType(metaData.getColumnType(k));
 				value = sqlRowSet.getString(k) == null ? "" : sqlRowSet.getString(k);
-				if("clob".equals(t)){//临时解决clob oracle 10g+ mabey
+				if(Constant.DataBase.FILED_TYPE_CLOB.equals(t)){//临时解决clob oracle 10g+ mabey
 					Object obj = sqlRowSet.getObject(k);
 					SerialClob clob = (SerialClob) obj;
 					try {
@@ -529,8 +470,8 @@ public class Persistence extends JdbcDaoSupport {
 						Date tempDate = DateUtils.string2Date(value, "yyyy-MM-dd HH:mm:ss");
 						value = DateUtils.date2String(tempDate, "yyyy-MM-dd HH:mm:ss");
 					} catch (Exception e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
+						value = "";
 					}
 				}
 				row.setColumnValue(metaData.getColumnLabel(k), value);
@@ -677,18 +618,6 @@ public class Persistence extends JdbcDaoSupport {
 	 */
 	public void setOrder(String order) {
 		this._order = order;
-	}
-
-	/**
-	 * 设置分组字段
-	 * 
-	 * @deprecated
-	 * @author changjq
-	 * @date 2014年10月30日
-	 * @param groupBy
-	 */
-	public void setGroupBy(String groupBy) {
-		this._group = groupBy;
 	}
 
 	/**
