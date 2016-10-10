@@ -8,11 +8,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import net.sf.json.JSONObject;
-
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 
+import com.alibaba.fastjson.JSONObject;
 import com.lnpc.common.utils.HttpUtils;
 /**
  * 针对普通上传方式的验证文件大小
@@ -27,8 +26,8 @@ public class ValiFileSize extends HttpServlet {
 	@Override
 	public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException{
 		JSONObject retObj = new JSONObject();
-		retObj.accumulate("success", true);
-		retObj.accumulate("realSize", "0");
+		retObj.put("success", true);
+		retObj.put("realSize", "0");
 		try {
 			FileUpload upload = new FileUpload(request);
 			Map<String, FileItem> fileMap = upload.getMpFiles();
@@ -39,14 +38,14 @@ public class ValiFileSize extends HttpServlet {
 				FileItem item = fileMap.get(fileName);
 				if(item!=null){
 					boolean sizeFlag = true;
-					retObj.accumulate("realSize", item.getSize());
+					retObj.put("realSize", item.getSize());
 					if(item.getSize()>fileSize){
 						sizeFlag = false;
 					}else{
 						String finalFileName =  upload.upLoad(item);
-						retObj.accumulate("uploadFileName", finalFileName);
+						retObj.put("uploadFileName", finalFileName);
 					}
-					retObj.accumulate("sizeFlag", sizeFlag);
+					retObj.put("sizeFlag", sizeFlag);
 				}
 			}
 		} catch (FileUploadException e) {

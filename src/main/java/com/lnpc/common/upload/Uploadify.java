@@ -10,11 +10,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import net.sf.json.JSONObject;
-
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileUploadException;
 
+import com.alibaba.fastjson.JSONObject;
 import com.lnpc.common.utils.HttpUtils;
 /**
  * 针对uploadify插件的上传servlet
@@ -29,7 +28,7 @@ public class Uploadify extends HttpServlet {
 	@Override
 	public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException{
 		JSONObject retObj = new JSONObject();
-		retObj.accumulate("success", true);
+		retObj.put("success", true);
 		try {
 			FileUpload upload = new FileUpload(request);
 			String folder = request.getParameter("uploadFolder");
@@ -43,11 +42,11 @@ public class Uploadify extends HttpServlet {
 				String key = (String) iterator.next();
 				FileItem item = fileMap.get(key);
 				String realFileName = upload.upLoad(item);
-				retObj.accumulate(key, realFileName);
+				retObj.put(key, realFileName);
 			}
 			
 		} catch (FileUploadException e) {
-			retObj.accumulate("success", false);
+			retObj.put("success", false);
 			e.printStackTrace();
 		}
 		finally{

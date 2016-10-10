@@ -14,7 +14,6 @@ import org.apache.commons.fileupload.FileUploadException;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
-import com.lnpc.common.config.Constant;
 import com.lnpc.common.utils.StringUtils;
 
 /**
